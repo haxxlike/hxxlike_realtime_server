@@ -1,0 +1,4 @@
+.env
+backend.so
+vendor/
+go.work.sum
