@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/haxxlike/hxxlike_realtime_server/lua"
@@ -41,9 +43,45 @@ func verifyAndParseJwt(secretKey string, jwt string) error {
 	return nil
 }
 
+func callCrawler(lambda_URL string) {
+	// func callCrawler(lambda_URL string) ([]map[string]interface{}, error) {
+	req, err := http.NewRequest("GET", lambda_URL, nil)
+	if err != nil {
+		fmt.Printf("error!!!!!!!!!!!!!!!!!!!!!1: %v\n", req)
+		panic(err)
+	}
+	// querys := req.URL.Query()
+	// querys.Add("wstoken", MOODLE_WEB_SERVICE_TOKEN)
+	// querys.Add("moodlewsrestformat", MOODLE_WEB_SERVICE_REST_FORMAT)
+	// for k, v := range params {
+	// 	querys.Add(k, v.(string))
+	// }
+	// req.URL.RawQuery = querys.Encode()
+	fmt.Printf("req: %v\n", req.URL.Query())
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("response Status: %v\n", resp)
+	// b, _ := io.ReadAll(resp.Body)
+	// body := []map[string]interface{}{}
+	// if err := json.Unmarshal(b, &body); err != nil {
+	// 	fmt.Printf("error!!!!!!!!!!!!!!!!!!!!!2: %v\n", body)
+	// 	panic(err)
+	// }
+	// fmt.Printf("response Status: %q\n", body)
+	// defer resp.Body.Close()
+	// return body, nil
+}
+
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
 	// logger.Info("Init local cache %v", utils.Cache)
 	// utils.Cache.Test(logger)
+	env := ctx.Value(runtime.RUNTIME_CTX_ENV).(map[string]string)
+	var (
+		LAMBDA_URL = env["LAMBDA_URL"]
+	)
 	if err := initializer.RegisterEvent(func(ctx context.Context, logger runtime.Logger, evt *api.Event) {
 		var response any
 		var previous any
@@ -99,6 +137,16 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 				eventError(ctx, evtName, evtMatchId, nk, evterror, logger)
 				return
 			}
+		case "get_profile_info":
+			var profileInfo *lua.ProfileInfo
+			_ = json.Unmarshal([]byte(evtProperties["get_profile_info"]), &profileInfo)
+			logger.Info("profileInfo: %+v", profileInfo)
+			logger.Info("env==============================%+v", env)
+			logger.Info("LAMBDA_URL==============================%+v", LAMBDA_URL)
+			//////////////////////////////////////////////////////////////////////////////
+			//call lambda crawler
+			callCrawler(LAMBDA_URL)
+			//////////////////////////////////////////////////////////////////////////////
 			//functions do not return match signal
 		case "select_update_account_id":
 			decoded := map[string]interface{}{}
@@ -121,7 +169,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 			nk.NotificationSend(ctx, noti.UserID, noti.Subject, noti.Content, noti.Code, noti.Sender, noti.Persistent)
 			return
 		default:
-			logger.Error("unrecognised evt: %+v", evt)
+			logger.Error("unrecognized evt: %+v", evt)
 			eventError(ctx, evtName, evtMatchId, nk, evterror, logger)
 			return
 		}

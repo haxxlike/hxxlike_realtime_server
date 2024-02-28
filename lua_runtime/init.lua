@@ -1,3 +1,5 @@
 local nk = require("nakama")
-
+-- nk.run_once(function()
+--     nk.match_create("crawl_match", { test = "test" })
+-- end)
 local match_id = nk.match_create("crawl_match", { test = "test" })

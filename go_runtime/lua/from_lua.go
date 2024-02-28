@@ -31,3 +31,7 @@ type LeaderboardRecordWrite struct {
 	Metadata         map[string]interface{} `json:"metadata"`
 	OverrideOperator int                    `json:"override_operator"`
 }
+
+type ProfileInfo struct {
+	Username string `json:"username"`
+}
